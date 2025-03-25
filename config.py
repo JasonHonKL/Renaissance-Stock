@@ -11,8 +11,11 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
 # Agent configuration
-MANAGER_MODEL = "deepseek-chat"
-AGENT_MODEL = "deepseek-chat"
+MANAGER_MODEL = os.getenv("MODEL")
+AGENT_MODEL = os.getenv("MODEL")
+
+# Base URL
+BASE_URL = os.getenv("BASE_URL")
 
 # Web app configuration
 PORT = int(os.getenv("PORT", 5000))

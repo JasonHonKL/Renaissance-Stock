@@ -44,12 +44,14 @@ torch .env
 Open the `.env` file and fill in your API keys:
 
 ```
-OPENAI_API_KEY=your_deepseek_api_key
+OPENAI_API_KEY=your_open_ai_key
 ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
 NEWS_API_KEY=your_news_api_key
 FINNHUB_API_KEY=your_finnhub_api_key
 PORT=5000
 DEBUG=False
+BASE_URL=the_base_url_of_your_provider
+MODEL=the_model_you_use
 ```
 
 ### API Key Sources

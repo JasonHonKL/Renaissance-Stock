@@ -4,7 +4,7 @@ import logging
 import aiohttp
 from openai import AsyncOpenAI
 from core.agent_interface import Agent
-from config import FINNHUB_API_KEY, OPENAI_API_KEY, AGENT_MODEL
+from config import FINNHUB_API_KEY, OPENAI_API_KEY, AGENT_MODEL,BASE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class SentimentAgent(Agent):
     
     def __init__(self):
         super().__init__("sentiment_agent", "Analyzes market sentiment and social media trends")
-        self.client = AsyncOpenAI(api_key=OPENAI_API_KEY , base_url="https://api.deepseek.com")
+        self.client = AsyncOpenAI(api_key=OPENAI_API_KEY , base_url=BASE_URL)
     
     async def fetch_social_sentiment(self, symbol):
         """Fetch social sentiment data from Finnhub."""

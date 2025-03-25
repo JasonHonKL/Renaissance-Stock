@@ -5,7 +5,7 @@ import traceback
 import time
 from openai import AsyncOpenAI
 from core.agent_interface import Agent
-from config import OPENAI_API_KEY, MANAGER_MODEL
+from config import OPENAI_API_KEY, MANAGER_MODEL, BASE_URL
 
 # Configure more detailed logging
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
@@ -39,7 +39,7 @@ class ManagerAgent(Agent):
         """Get or create an OpenAI client."""
         if self._client is None:
             self._client = AsyncOpenAI(
-                base_url="https://api.deepseek.com",
+                base_url=BASE_URL,
                 api_key=OPENAI_API_KEY,
                 timeout=30.0,
                 max_retries=2

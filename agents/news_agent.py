@@ -5,7 +5,7 @@ import aiohttp
 from datetime import datetime, timedelta
 from openai import AsyncOpenAI
 from core.agent_interface import Agent
-from config import NEWS_API_KEY, OPENAI_API_KEY, AGENT_MODEL
+from config import NEWS_API_KEY, OPENAI_API_KEY, AGENT_MODEL,BASE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ class NewsAgent(Agent):
     
     def __init__(self):
         super().__init__("news_agent", "Gathers and analyzes recent news about stocks")
-        self.client = AsyncOpenAI(api_key=OPENAI_API_KEY , base_url="https://api.deepseek.com")
+        self.client = AsyncOpenAI(api_key=OPENAI_API_KEY , base_url=BASE_URL)
     
     async def fetch_news(self, symbol, company_name=None):
         """Fetch recent news articles about the stock."""
