@@ -34,11 +34,11 @@ python app.py
 
 Here are some examples of the images:
 
-![Apple 1](examples/apple_1.png)
-![Apple 2](examples/apple_2.png)
-![Apple 3](examples/apple_3.png)
-![Apple 4](examples/apple_4.png)
-![Apple 5](examples/apple_5.png)
+![google 1](examples/google_1.png)
+![google 2](examples/google_2.png)
+![google 3](examples/google_3.png)
+![google 4](examples/google_4.png)
+![google 5](examples/google_5.png)
 
 #### Contributors
 @JasonHonKL
