@@ -40,7 +40,7 @@ Here are some examples of the images:
 ![Apple 4](examples/apple_4.png)
 
 #### Contributors
-
+@JasonHonKL
 
 #### LICENSE 
 MIT LICENSE 
