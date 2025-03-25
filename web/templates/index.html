@@ -1,4 +1,3 @@
-<!-- web/templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,46 +5,319 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Renaissance Stock</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4895ef;
+            --light-bg: #f8f9fa;
+            --dark-text: #212529;
+            --light-text: #f8f9fa;
+            --success-color: #4cc9a0;
+            --warning-color: #f7b538;
+            --danger-color: #e63946;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .navbar-brand i {
+            margin-right: 8px;
+        }
+        
+        .main-container {
+            flex: 1;
+            padding: 2rem 0;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 1.25rem 1.5rem;
+        }
+        
+        .card-header h4 {
+            margin: 0;
+            font-weight: 600;
+            color: var(--dark-text);
+            font-size: 1.35rem;
+        }
+        
+        .card-body {
+            padding: 1.75rem;
+        }
+        
+        .search-container {
+            position: relative;
+        }
+        
+        .input-group {
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+        }
+        
+        #symbolInput {
+            border-radius: 8px 0 0 8px;
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            font-size: 1rem;
+        }
+        
+        #analyzeBtn {
+            border-radius: 0 8px 8px 0;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--primary-color);
+            border: none;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        #analyzeBtn:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        #searchResults {
+            position: absolute;
+            width: 100%;
+            z-index: 10;
+            max-height: 300px;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .list-group-item {
+            border: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 0.85rem 1rem;
+            transition: background-color 0.2s;
+        }
+        
+        .list-group-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-group-item:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        #loadingIndicator {
+            padding: 3rem 0;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: var(--accent-color);
+        }
+        
+        #errorMessage {
+            border-radius: 8px;
+            padding: 1rem;
+            border-left: 5px solid var(--danger-color);
+        }
+        
+        #reportContainer {
+            background-color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+        }
+        
+        #reportTitle {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--dark-text);
+        }
+        
+        #reportTimestamp {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        #reportContent {
+            line-height: 1.8;
+            color: #212529;
+            margin-top: 1.5rem;
+        }
+        
+        /* Report styles */
+        .report-summary {
+            background-color: rgba(67, 97, 238, 0.05);
+            border-left: 4px solid var(--primary-color);
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .report-section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .report-section h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.25rem;
+            color: var(--dark-text);
+        }
+        
+        .recommendation {
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            display: inline-block;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .recommendation.buy {
+            background-color: rgba(76, 201, 160, 0.15);
+            color: var(--success-color);
+        }
+        
+        .recommendation.hold {
+            background-color: rgba(247, 181, 56, 0.15);
+            color: var(--warning-color);
+        }
+        
+        .recommendation.sell {
+            background-color: rgba(230, 57, 70, 0.15);
+            color: var(--danger-color);
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-name {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .metric-value {
+            font-weight: 600;
+            color: var(--dark-text);
+        }
+        
+        .chart-container {
+            margin: 1.5rem 0;
+            height: 300px;
+            background-color: rgba(0, 0, 0, 0.02);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .footer {
+            background-color: white;
+            padding: 1.5rem 0;
+            margin-top: auto;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .footer .text-muted {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1.25rem;
+            }
+            
+            #reportContainer {
+                padding: 1.5rem;
+            }
+            
+            #reportTitle {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="#">Renaissance Stock</a>
+            <a class="navbar-brand" href="#"><i class="bi bi-graph-up"></i>Renaissance Stock</a>
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h4>Stock Analysis</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="search-container">
-                            <div class="input-group mb-3">
-                                <input type="text" id="symbolInput" class="form-control" placeholder="Enter stock symbol (e.g., AAPL, MSFT, GOOG)" aria-label="Stock Symbol">
-                                <button class="btn btn-primary" type="button" id="analyzeBtn">Analyze</button>
-                            </div>
-                            <div id="searchResults" class="list-group mt-2 d-none"></div>
+    <div class="main-container">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-header d-flex align-items-center">
+                            <h4><i class="bi bi-bar-chart-fill me-2"></i>Stock Analysis</h4>
                         </div>
-
-                        <div id="loadingIndicator" class="text-center mt-4 d-none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                        <div class="card-body">
+                            <div class="search-container">
+                                <div class="input-group mb-3">
+                                    <input type="text" id="symbolInput" class="form-control" placeholder="Enter stock symbol (e.g., AAPL, MSFT, GOOG)" aria-label="Stock Symbol">
+                                    <button class="btn btn-primary" type="button" id="analyzeBtn">
+                                        <i class="bi bi-search me-1"></i>Analyze
+                                    </button>
+                                </div>
+                                <div id="searchResults" class="list-group mt-2 d-none"></div>
                             </div>
-                            <p class="mt-2">Analyzing stock data... This may take a moment.</p>
-                        </div>
 
-                        <div id="errorMessage" class="alert alert-danger mt-4 d-none"></div>
-
-                        <div id="reportContainer" class="mt-4 d-none">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h3 id="reportTitle"></h3>
-                                <span id="reportTimestamp" class="text-muted"></span>
+                            <div id="loadingIndicator" class="text-center mt-5 d-none">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-3 text-muted">Analyzing stock data... This may take a moment.</p>
                             </div>
-                            <div id="reportContent"></div>
+
+                            <div id="errorMessage" class="alert alert-danger mt-4 d-none"></div>
+
+                            <div id="reportContainer" class="mt-4 d-none">
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+                                    <h3 id="reportTitle" class="mb-2 mb-md-0"></h3>
+                                    <span id="reportTimestamp" class="text-muted"><i class="bi bi-clock me-1"></i></span>
+                                </div>
+                                <div id="reportContent"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -53,13 +325,212 @@
         </div>
     </div>
 
-    <footer class="footer mt-4 py-3 bg-light">
+    <footer class="footer">
         <div class="container text-center">
-            <span class="text-muted">© 2025 Stock Analysis System</span>
+            <span class="text-muted">© 2025 Renaissance Stock Analysis | <i class="bi bi-bar-chart-fill"></i> Powered by Renaisssance Stock</span>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const symbolInput = document.getElementById('symbolInput');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const searchResults = document.getElementById('searchResults');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const reportContainer = document.getElementById('reportContainer');
+            const reportTitle = document.getElementById('reportTitle');
+            const reportTimestamp = document.getElementById('reportTimestamp');
+            const reportContent = document.getElementById('reportContent');
+            
+            // Handle symbol search
+            let searchTimeout;
+            symbolInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                const query = symbolInput.value.trim();
+                
+                if (query.length < 2) {
+                    searchResults.classList.add('d-none');
+                    return;
+                }
+                
+                searchTimeout = setTimeout(() => {
+                    searchSymbol(query);
+                }, 500);
+            });
+            
+            // Handle click outside search results
+            document.addEventListener('click', function(event) {
+                if (!searchResults.contains(event.target) && event.target !== symbolInput) {
+                    searchResults.classList.add('d-none');
+                }
+            });
+            
+            // Handle analyze button click
+            analyzeBtn.addEventListener('click', function() {
+                const symbol = symbolInput.value.trim();
+                if (symbol) {
+                    analyzeStock(symbol);
+                } else {
+                    showError('Please enter a stock symbol');
+                }
+            });
+            
+            // Handle enter key in input
+            symbolInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    const symbol = symbolInput.value.trim();
+                    if (symbol) {
+                        analyzeStock(symbol);
+                    } else {
+                        showError('Please enter a stock symbol');
+                    }
+                }
+            });
+            
+            // Function to search for symbols
+            async function searchSymbol(query) {
+                try {
+                    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' && data.data.length > 0) {
+                        displaySearchResults(data.data);
+                    } else {
+                        searchResults.classList.add('d-none');
+                    }
+                } catch (error) {
+                    console.error('Error searching for symbol:', error);
+                    searchResults.classList.add('d-none');
+                }
+            }
+            
+            // Function to display search results
+            function displaySearchResults(results) {
+                searchResults.innerHTML = '';
+                
+                results.forEach(result => {
+                    const item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'list-group-item list-group-item-action';
+                    item.innerHTML = `<strong>${result.symbol}</strong> - ${result.name} <small class="text-muted">(${result.region})</small>`;
+                    
+                    item.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        symbolInput.value = result.symbol;
+                        searchResults.classList.add('d-none');
+                    });
+                    
+                    searchResults.appendChild(item);
+                });
+                
+                searchResults.classList.remove('d-none');
+            }
+            
+            // Function to analyze a stock
+            async function analyzeStock(symbol) {
+                // Show loading indicator
+                loadingIndicator.classList.remove('d-none');
+                errorMessage.classList.add('d-none');
+                reportContainer.classList.add('d-none');
+                
+                try {
+                    const response = await fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ symbol: symbol })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        displayReport(data.data);
+                    } else {
+                        showError(data.message || 'Failed to analyze stock');
+                    }
+                } catch (error) {
+                    console.error('Error analyzing stock:', error);
+                    showError('An error occurred while analyzing the stock');
+                } finally {
+                    loadingIndicator.classList.add('d-none');
+                }
+            }
+            
+            // Function to display the report
+            function displayReport(data) {
+                reportTitle.textContent = `${data.symbol} - ${data.company_name}`;
+                
+                // Format timestamp
+                const timestamp = new Date(data.timestamp);
+                reportTimestamp.textContent = `Generated on ${timestamp.toLocaleDateString()} at ${timestamp.toLocaleTimeString()}`;
+                
+                // Set report content - ensure we're only getting the HTML content
+                let htmlContent = data.report.html_content;
+                
+                // If the content still contains markdown code blocks, extract just the HTML
+                if (htmlContent.includes('```')) {
+                    const codeBlockMatch = htmlContent.match(/```(?:html)?\s*([\s\S]*?)\s*```/);
+                    if (codeBlockMatch && codeBlockMatch[1]) {
+                        htmlContent = codeBlockMatch[1].trim();
+                    }
+                }
+                
+                reportContent.innerHTML = htmlContent;
+                
+                // Enhance report elements with icons
+                enhanceReportElements();
+                
+                // Show report container
+                reportContainer.classList.remove('d-none');
+                
+                // Scroll to report
+                reportContainer.scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            // Function to enhance report elements with icons
+            function enhanceReportElements() {
+                // Add icons to section headings
+                const sectionHeadings = reportContent.querySelectorAll('.report-section h2');
+                sectionHeadings.forEach(heading => {
+                    const text = heading.textContent.toLowerCase();
+                    let icon = 'bi-info-circle';
+                    
+                    if (text.includes('summary')) icon = 'bi-card-text';
+                    if (text.includes('financial')) icon = 'bi-cash-stack';
+                    if (text.includes('technical')) icon = 'bi-graph-up';
+                    if (text.includes('recommendation')) icon = 'bi-check-circle';
+                    if (text.includes('risk')) icon = 'bi-exclamation-triangle';
+                    
+                    heading.innerHTML = `<i class="bi ${icon} me-2"></i>${heading.textContent}`;
+                });
+                
+                // Enhance metrics
+                const metrics = reportContent.querySelectorAll('.metric');
+                metrics.forEach(metric => {
+                    const valueElement = metric.querySelector('.metric-value');
+                    if (valueElement) {
+                        const value = valueElement.textContent;
+                        if (value.includes('%')) {
+                            if (parseFloat(value) > 0) {
+                                valueElement.innerHTML = `<span class="text-success">${value} <i class="bi bi-arrow-up"></i></span>`;
+                            } else if (parseFloat(value) < 0) {
+                                valueElement.innerHTML = `<span class="text-danger">${value} <i class="bi bi-arrow-down"></i></span>`;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Function to show an error message
+            function showError(message) {
+                errorMessage.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i>${message}`;
+                errorMessage.classList.remove('d-none');
+                loadingIndicator.classList.add('d-none');
+            }
+        });
+    </script>
 </body>
 </html>
