@@ -44,13 +44,19 @@ torch .env
 Open the `.env` file and fill in your API keys:
 
 ```
-OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_KEY=your_deepseek_api_key
 ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
 NEWS_API_KEY=your_news_api_key
 FINNHUB_API_KEY=your_finnhub_api_key
 PORT=5000
 DEBUG=False
 ```
+
+### API Key Sources
+
+- **[Alpha Vantage API](https://www.alphavantage.co/support/#api-key)**: Sign up for a free API key to access stock market data.
+- **[News API](https://newsapi.org/register)**: Register for an API key to access news articles from various sources.
+- **[Finnhub API](https://finnhub.io/docs/api#authentication)**: Create an account to obtain your API key for financial data.
 
 ### Step 4: Run the Application
 
