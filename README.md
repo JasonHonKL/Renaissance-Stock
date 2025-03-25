@@ -41,6 +41,7 @@ Here are some examples of the images:
 
 #### Contributors
 @JasonHonKL
+@KinsonAu03
 
 #### LICENSE 
 MIT LICENSE 
