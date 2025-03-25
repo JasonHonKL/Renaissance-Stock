@@ -1,6 +1,7 @@
 # web/app.py
 from flask import Flask, render_template, request, jsonify
 import asyncio
+import aiohttp
 import logging
 import json
 import os
@@ -64,16 +65,25 @@ async def analyze_stock():
                 'data': cached_report
             })
         
-        # Check if the symbol is valid
-        is_valid = await DataFetcher.check_symbol_validity(symbol)
-        if not is_valid:
-            return jsonify({
-                'status': 'error',
-                'message': f"Invalid stock symbol: {symbol}"
-            }), 400
+        # Check if the symbol is valid with improved error handling
+        try:
+            is_valid = await DataFetcher.check_symbol_validity(symbol)
+            if not is_valid:
+                return jsonify({
+                    'status': 'error',
+                    'message': f"Could not validate stock symbol: {symbol}. Please check if this is a correct symbol."
+                }), 400
+        except Exception as e:
+            logger.warning(f"Symbol validation error for {symbol}: {str(e)}")
+            # Continue anyway since our validation might be failing, not the symbol
+            logger.info(f"Proceeding with analysis for {symbol} despite validation failure")
         
-        # Get company name
-        company_name = await DataFetcher.get_company_name(symbol)
+        # Get company name with better error handling
+        try:
+            company_name = await DataFetcher.get_company_name(symbol)
+        except Exception as e:
+            logger.warning(f"Error getting company name for {symbol}: {str(e)}")
+            company_name = symbol
         
         # Create manager task
         manager_task = {

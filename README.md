@@ -1,4 +1,5 @@
-
+## Renaissance Stock
+Your personal full time analyst 
 #### What is Renaissance Stock
 Renaissance Stock is an agentic framework that generates stock analysis reports using up-to-date information. It is significantly faster and more cost-effective than traditional methods. Most importantly, it’s open source, allowing anyone to use it without restrictions.
 
@@ -29,3 +30,13 @@ Step 4: Enjoy
 python app.py
 ``` 
 
+#### Example Images
+
+Here are some examples of the images:
+
+![Apple 1](examples/apple_1.png)
+![Apple 2](examples/apple_2.png)
+![Apple 3](examples/apple_3.png)
+![Apple 4](examples/apple_4.png)
+
+#### Contributors
