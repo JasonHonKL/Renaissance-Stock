@@ -40,3 +40,10 @@ Here are some examples of the images:
 ![Apple 4](examples/apple_4.png)
 
 #### Contributors
+
+
+#### LICENSE 
+MIT LICENSE 
+
+#### CONTRIBUTION 
+We welcome any pull requrests. But it takes time to review so please wait. 
