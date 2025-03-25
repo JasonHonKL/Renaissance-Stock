@@ -5,20 +5,41 @@ import aiohttp
 import logging
 import json
 import os
+import traceback
 from datetime import datetime
+import time
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Configure more detailed logging
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+logging.basicConfig(
+    level=logging.DEBUG,  # Set to DEBUG to get more detailed logs
+    format=LOG_FORMAT,
+    handlers=[
+        logging.FileHandler("app.log"),  # Log to file
+        logging.StreamHandler()  # Also log to console
+    ]
+)
 logger = logging.getLogger(__name__)
+
+# Create a performance logger for timing operations
+perf_logger = logging.getLogger("performance")
+perf_logger.setLevel(logging.INFO)
 
 app = Flask(__name__, 
             template_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'web/templates'),
             static_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'web/static'))
 
+# Log Flask app initialization
+logger.info(f"Flask app initialized with template folder: {app.template_folder}")
+logger.info(f"Flask app initialized with static folder: {app.static_folder}")
+
 # Add this to ensure proper cleanup between requests
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     """Clean up resources after each request."""
+    if exception:
+        logger.error(f"Error during request: {str(exception)}")
+    logger.debug("Request context ended, cleaning up resources")
     pass  # We'll add specific cleanup code if needed
 
 # Stock analysis system components
@@ -34,37 +55,71 @@ from data.cache import cache
 from functools import wraps
 
 # Initialize task manager and agents
+logger.info("Initializing task manager and agents")
 task_manager = TaskManager()
 manager_agent = ManagerAgent(task_manager)
 
 # Register all agents with the task manager
+logger.debug("Registering agents with task manager")
 task_manager.register_agent("manager", manager_agent)
 task_manager.register_agent("price_agent", PriceAgent())
 task_manager.register_agent("financial_agent", FinancialAgent())
 task_manager.register_agent("news_agent", NewsAgent())
 task_manager.register_agent("sentiment_agent", SentimentAgent())
 task_manager.register_agent("report_agent", ReportAgent())
+logger.info("All agents registered successfully")
+
+# web/app.py
+from core.event_loop import loop_manager
 
 def async_route(f):
     """Decorator to make async routes work with Flask."""
     @wraps(f)
     def wrapped(*args, **kwargs):
-        return asyncio.run(f(*args, **kwargs))
+        return loop_manager.run_async(f(*args, **kwargs))
     return wrapped
+
+def performance_log(method):
+    """Decorator to log performance of methods."""
+    @wraps(method)
+    async def wrapper(*args, **kwargs):
+        start_time = time.time()
+        method_name = method.__name__
+        logger.debug(f"Starting {method_name}")
+        try:
+            result = await method(*args, **kwargs)
+            end_time = time.time()
+            perf_logger.info(f"{method_name} completed in {end_time - start_time:.2f} seconds")
+            return result
+        except Exception as e:
+            end_time = time.time()
+            logger.error(f"Exception in {method_name}: {str(e)}")
+            logger.error(traceback.format_exc())
+            perf_logger.info(f"{method_name} failed after {end_time - start_time:.2f} seconds")
+            raise
+    return wrapper
 
 @app.route('/')
 def index():
     """Render the main page."""
+    logger.debug("Rendering index page")
     return render_template('index.html')
 
 @app.route('/api/analyze', methods=['POST'])
 @async_route
 async def analyze_stock():
     """API endpoint to analyze a stock."""
+    request_id = f"req-{int(time.time())}"
+    logger.info(f"[{request_id}] Received analyze request")
+    
     data = request.json
+    logger.debug(f"[{request_id}] Request data: {data}")
+    
     symbol = data.get('symbol', '').upper()
+    logger.info(f"[{request_id}] Analyzing stock: {symbol}")
     
     if not symbol:
+        logger.warning(f"[{request_id}] Missing stock symbol in request")
         return jsonify({
             'status': 'error',
             'message': 'Stock symbol is required'
@@ -74,31 +129,41 @@ async def analyze_stock():
         # Check if we have a cached report
         cached_report = cache.get(f"report_{symbol}")
         if cached_report:
-            logger.info(f"Returning cached report for {symbol}")
+            logger.info(f"[{request_id}] Returning cached report for {symbol}")
             return jsonify({
                 'status': 'success',
                 'data': cached_report
             })
         
+        logger.info(f"[{request_id}] No cached report found for {symbol}, performing analysis")
+        
         # Check if the symbol is valid with improved error handling
         try:
+            logger.debug(f"[{request_id}] Validating symbol: {symbol}")
             is_valid = await DataFetcher.check_symbol_validity(symbol)
             if not is_valid:
+                logger.warning(f"[{request_id}] Invalid stock symbol: {symbol}")
                 return jsonify({
                     'status': 'error',
                     'message': f"Could not validate stock symbol: {symbol}. Please check if this is a correct symbol."
                 }), 400
+            logger.debug(f"[{request_id}] Symbol {symbol} is valid")
         except Exception as e:
-            logger.warning(f"Symbol validation error for {symbol}: {str(e)}")
+            logger.warning(f"[{request_id}] Symbol validation error for {symbol}: {str(e)}")
+            logger.debug(traceback.format_exc())
             # Continue anyway since our validation might be failing, not the symbol
-            logger.info(f"Proceeding with analysis for {symbol} despite validation failure")
+            logger.info(f"[{request_id}] Proceeding with analysis for {symbol} despite validation failure")
         
         # Get company name with better error handling
         try:
+            logger.debug(f"[{request_id}] Getting company name for {symbol}")
             company_name = await DataFetcher.get_company_name(symbol)
+            logger.debug(f"[{request_id}] Company name for {symbol}: {company_name}")
         except Exception as e:
-            logger.warning(f"Error getting company name for {symbol}: {str(e)}")
+            logger.warning(f"[{request_id}] Error getting company name for {symbol}: {str(e)}")
+            logger.debug(traceback.format_exc())
             company_name = symbol
+            logger.info(f"[{request_id}] Using symbol as company name: {company_name}")
         
         # Create manager task
         manager_task = {
@@ -106,18 +171,33 @@ async def analyze_stock():
             "company_name": company_name
         }
         
+        logger.info(f"[{request_id}] Processing manager task for {symbol}")
+        logger.debug(f"[{request_id}] Manager task: {manager_task}")
+        
         # Process manager task
+        manager_start = time.time()
         manager_response = await manager_agent.process_task(manager_task)
+        manager_end = time.time()
+        perf_logger.info(f"[{request_id}] Manager agent completed in {manager_end - manager_start:.2f} seconds")
+        
+        logger.debug(f"[{request_id}] Manager response: {manager_response}")
         manager_result = json.loads(manager_response)
         
         if manager_result["status"] != "success":
+            logger.error(f"[{request_id}] Manager agent failed: {manager_result['message']}")
             return jsonify({
                 'status': 'error',
                 'message': manager_result["message"]
             }), 500
         
         # Execute all tasks created by the manager
+        logger.info(f"[{request_id}] Executing all tasks for {symbol}")
+        tasks_start = time.time()
         task_results = await task_manager.execute_all_tasks()
+        tasks_end = time.time()
+        perf_logger.info(f"[{request_id}] All agent tasks completed in {tasks_end - tasks_start:.2f} seconds")
+        
+        logger.debug(f"[{request_id}] Task results: {task_results}")
         
         # Collect data from all agents
         stock_data = {
@@ -127,16 +207,34 @@ async def analyze_stock():
         
         for result in task_results:
             if result["status"] == "completed":
-                agent_result = json.loads(result["result"])
+                agent_name = result.get("agent", "unknown")
+                logger.debug(f"[{request_id}] Processing result from {agent_name}")
                 
-                if agent_result["agent"] == "price_agent":
-                    stock_data["price_data"] = agent_result["data"]
-                elif agent_result["agent"] == "financial_agent":
-                    stock_data["financial_data"] = agent_result["data"]
-                elif agent_result["agent"] == "news_agent":
-                    stock_data["news_data"] = agent_result["data"]
-                elif agent_result["agent"] == "sentiment_agent":
-                    stock_data["sentiment_data"] = agent_result["data"]
+                try:
+                    agent_result = json.loads(result["result"])
+                    
+                    if agent_result["agent"] == "price_agent":
+                        stock_data["price_data"] = agent_result["data"]
+                        logger.debug(f"[{request_id}] Added price data")
+                    elif agent_result["agent"] == "financial_agent":
+                        stock_data["financial_data"] = agent_result["data"]
+                        logger.debug(f"[{request_id}] Added financial data")
+                    elif agent_result["agent"] == "news_agent":
+                        stock_data["news_data"] = agent_result["data"]
+                        logger.debug(f"[{request_id}] Added news data")
+                    elif agent_result["agent"] == "sentiment_agent":
+                        stock_data["sentiment_data"] = agent_result["data"]
+                        logger.debug(f"[{request_id}] Added sentiment data")
+                except Exception as e:
+                    logger.error(f"[{request_id}] Error processing result from {agent_name}: {str(e)}")
+                    logger.error(traceback.format_exc())
+                    logger.debug(f"[{request_id}] Problematic result: {result}")
+            else:
+                logger.warning(f"[{request_id}] Task not completed: {result}")
+        
+        # Log collected data summary
+        data_keys = list(stock_data.keys())
+        logger.info(f"[{request_id}] Collected data for {symbol}: {data_keys}")
         
         # Create report task
         report_task = {
@@ -144,11 +242,18 @@ async def analyze_stock():
         }
         
         # Get report from report agent
+        logger.info(f"[{request_id}] Generating report for {symbol}")
         report_agent = task_manager.agents["report_agent"]
+        report_start = time.time()
         report_response = await report_agent.process_task(report_task)
+        report_end = time.time()
+        perf_logger.info(f"[{request_id}] Report generation completed in {report_end - report_start:.2f} seconds")
+        
+        logger.debug(f"[{request_id}] Report response: {report_response}")
         report_result = json.loads(report_response)
         
         if report_result["status"] != "success":
+            logger.error(f"[{request_id}] Report generation failed: {report_result['message']}")
             return jsonify({
                 'status': 'error',
                 'message': report_result["message"]
@@ -163,7 +268,10 @@ async def analyze_stock():
         }
         
         # Cache the report for 5 minutes
+        logger.debug(f"[{request_id}] Caching report for {symbol}")
         cache.set(f"report_{symbol}", response_data)
+        
+        logger.info(f"[{request_id}] Analysis completed successfully for {symbol}")
         
         return jsonify({
             'status': 'success',
@@ -171,7 +279,8 @@ async def analyze_stock():
         })
         
     except Exception as e:
-        logger.error(f"Error analyzing stock: {str(e)}")
+        logger.error(f"[{request_id}] Error analyzing stock {symbol}: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({
             'status': 'error',
             'message': f"Error analyzing stock: {str(e)}"
@@ -181,9 +290,13 @@ async def analyze_stock():
 @async_route
 async def search_symbol():
     """API endpoint to search for a stock symbol."""
+    request_id = f"search-{int(time.time())}"
     query = request.args.get('q', '').upper()
     
+    logger.info(f"[{request_id}] Received search request for: {query}")
+    
     if not query or len(query) < 2:
+        logger.warning(f"[{request_id}] Search query too short: {query}")
         return jsonify({
             'status': 'error',
             'message': 'Search query must be at least 2 characters'
@@ -194,20 +307,27 @@ async def search_symbol():
         from config import ALPHA_VANTAGE_API_KEY
         
         url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={query}&apikey={ALPHA_VANTAGE_API_KEY}"
+        logger.debug(f"[{request_id}] Searching with URL: {url}")
         
+        start_time = time.time()
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status != 200:
-                    logger.error(f"Failed to search for symbols: {response.status}")
+                    logger.error(f"[{request_id}] Failed to search for symbols: {response.status}")
                     # Fallback to a simple search
-                    return await fallback_search(query)
+                    logger.info(f"[{request_id}] Using fallback search for {query}")
+                    return await fallback_search(query, request_id)
                 
                 data = await response.json()
+                end_time = time.time()
+                perf_logger.info(f"[{request_id}] Symbol search API completed in {end_time - start_time:.2f} seconds")
+                
+                logger.debug(f"[{request_id}] Search API response: {data}")
                 
                 if "bestMatches" not in data or not data["bestMatches"]:
-                    logger.warning(f"No matches found for {query} in Alpha Vantage")
+                    logger.warning(f"[{request_id}] No matches found for {query} in Alpha Vantage")
                     # Fallback to a simple search
-                    return await fallback_search(query)
+                    return await fallback_search(query, request_id)
                 
                 matches = []
                 for match in data["bestMatches"][:5]:  # Limit to 5 results
@@ -218,19 +338,26 @@ async def search_symbol():
                         "region": match.get("4. region", "")
                     })
                 
+                logger.info(f"[{request_id}] Found {len(matches)} matches for {query}")
+                logger.debug(f"[{request_id}] Matches: {matches}")
+                
                 return jsonify({
                     'status': 'success',
                     'data': matches
                 })
                 
     except Exception as e:
-        logger.error(f"Error searching for symbol: {str(e)}")
+        logger.error(f"[{request_id}] Error searching for symbol {query}: {str(e)}")
+        logger.error(traceback.format_exc())
         # Fallback to a simple search
-        return await fallback_search(query)
+        return await fallback_search(query, request_id)
 
-async def fallback_search(query):
+async def fallback_search(query, request_id=None):
     """Fallback search when the API fails."""
-    logger.info(f"Using fallback search for {query}")
+    if not request_id:
+        request_id = f"fallback-{int(time.time())}"
+        
+    logger.info(f"[{request_id}] Using fallback search for {query}")
     
     # Common stocks that might match the query
     common_stocks = [
@@ -263,22 +390,54 @@ async def fallback_search(query):
             query.lower() in stock["name"].lower()):
             matches.append(stock)
     
+    logger.info(f"[{request_id}] Fallback search found {len(matches)} matches for {query}")
+    logger.debug(f"[{request_id}] Fallback matches: {matches[:5]}")
+    
     return jsonify({
         'status': 'success',
         'data': matches[:5]  # Limit to 5 results
     })
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """API endpoint to check system health."""
+    logger.debug("Health check requested")
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """Handle 404 errors."""
+    logger.warning(f"404 error: {request.path}")
+    return jsonify({
+        'status': 'error',
+        'message': f"Endpoint not found: {request.path}"
+    }), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    """Handle 500 errors."""
+    logger.error(f"500 error: {str(e)}")
+    return jsonify({
+        'status': 'error',
+        'message': f"Server error: {str(e)}"
+    }), 500
+
 def run_app():
     """Run the Flask app."""
     from config import PORT, DEBUG
     
+    logger.info(f"Starting app with PORT={PORT}, DEBUG={DEBUG}")
+    
     if DEBUG:
         # Use Flask's development server for debugging
+        logger.info("Using Flask development server (DEBUG mode)")
         app.run(host='0.0.0.0', port=PORT, debug=DEBUG)
     else:
         # Use Waitress for production
+        logger.info("Using Waitress for production")
         from waitress import serve
         serve(app, host='0.0.0.0', port=PORT)
-
-
     
