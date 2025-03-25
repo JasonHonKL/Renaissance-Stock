@@ -38,6 +38,7 @@ Here are some examples of the images:
 ![Apple 2](examples/apple_2.png)
 ![Apple 3](examples/apple_3.png)
 ![Apple 4](examples/apple_4.png)
+![Apple 5](examples/apple_5.png)
 
 #### Contributors
 @JasonHonKL
