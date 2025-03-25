@@ -42,6 +42,7 @@ Here are some examples of the images:
 #### Contributors
 @JasonHonKL
 @KinsonAu03
+@BrianaaaC
 
 #### LICENSE 
 MIT LICENSE 

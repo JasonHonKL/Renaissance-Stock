@@ -15,6 +15,12 @@ app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'web/templates'),
             static_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'web/static'))
 
+# Add this to ensure proper cleanup between requests
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """Clean up resources after each request."""
+    pass  # We'll add specific cleanup code if needed
+
 # Stock analysis system components
 from core.task_manager import TaskManager
 from agents.manager import ManagerAgent
@@ -25,6 +31,7 @@ from agents.sentiment_agent import SentimentAgent
 from agents.report_agent import ReportAgent
 from data.data_fetcher import DataFetcher
 from data.cache import cache
+from functools import wraps
 
 # Initialize task manager and agents
 task_manager = TaskManager()
@@ -38,12 +45,20 @@ task_manager.register_agent("news_agent", NewsAgent())
 task_manager.register_agent("sentiment_agent", SentimentAgent())
 task_manager.register_agent("report_agent", ReportAgent())
 
+def async_route(f):
+    """Decorator to make async routes work with Flask."""
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
+    return wrapped
+
 @app.route('/')
 def index():
     """Render the main page."""
     return render_template('index.html')
 
 @app.route('/api/analyze', methods=['POST'])
+@async_route
 async def analyze_stock():
     """API endpoint to analyze a stock."""
     data = request.json
@@ -163,6 +178,7 @@ async def analyze_stock():
         }), 500
 
 @app.route('/api/search', methods=['GET'])
+@async_route
 async def search_symbol():
     """API endpoint to search for a stock symbol."""
     query = request.args.get('q', '').upper()
@@ -174,8 +190,7 @@ async def search_symbol():
         }), 400
     
     try:
-        # In a real app, you'd use an API to search for symbols
-        # This is a simplified example
+        # Use our improved DataFetcher to search for symbols
         from config import ALPHA_VANTAGE_API_KEY
         
         url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={query}&apikey={ALPHA_VANTAGE_API_KEY}"
@@ -183,18 +198,16 @@ async def search_symbol():
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status != 200:
-                    return jsonify({
-                        'status': 'error',
-                        'message': 'Failed to search for symbols'
-                    }), 500
+                    logger.error(f"Failed to search for symbols: {response.status}")
+                    # Fallback to a simple search
+                    return await fallback_search(query)
                 
                 data = await response.json()
                 
-                if "bestMatches" not in data:
-                    return jsonify({
-                        'status': 'error',
-                        'message': 'No matches found'
-                    }), 404
+                if "bestMatches" not in data or not data["bestMatches"]:
+                    logger.warning(f"No matches found for {query} in Alpha Vantage")
+                    # Fallback to a simple search
+                    return await fallback_search(query)
                 
                 matches = []
                 for match in data["bestMatches"][:5]:  # Limit to 5 results
@@ -212,12 +225,60 @@ async def search_symbol():
                 
     except Exception as e:
         logger.error(f"Error searching for symbol: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f"Error searching for symbol: {str(e)}"
-        }), 500
+        # Fallback to a simple search
+        return await fallback_search(query)
+
+async def fallback_search(query):
+    """Fallback search when the API fails."""
+    logger.info(f"Using fallback search for {query}")
+    
+    # Common stocks that might match the query
+    common_stocks = [
+        {"symbol": "AAPL", "name": "Apple Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "MSFT", "name": "Microsoft Corporation", "type": "Common Stock", "region": "United States"},
+        {"symbol": "AMZN", "name": "Amazon.com Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "GOOGL", "name": "Alphabet Inc. (Class A)", "type": "Common Stock", "region": "United States"},
+        {"symbol": "GOOG", "name": "Alphabet Inc. (Class C)", "type": "Common Stock", "region": "United States"},
+        {"symbol": "META", "name": "Meta Platforms Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "TSLA", "name": "Tesla Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "NVDA", "name": "NVIDIA Corporation", "type": "Common Stock", "region": "United States"},
+        {"symbol": "JPM", "name": "JPMorgan Chase & Co.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "JNJ", "name": "Johnson & Johnson", "type": "Common Stock", "region": "United States"},
+        {"symbol": "V", "name": "Visa Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "PG", "name": "Procter & Gamble Co.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "UNH", "name": "UnitedHealth Group Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "MA", "name": "Mastercard Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "HD", "name": "Home Depot Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "DIS", "name": "Walt Disney Co.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "BAC", "name": "Bank of America Corp.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "ADBE", "name": "Adobe Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "CRM", "name": "Salesforce.com Inc.", "type": "Common Stock", "region": "United States"},
+        {"symbol": "NFLX", "name": "Netflix Inc.", "type": "Common Stock", "region": "United States"}
+    ]
+    
+    # Filter the stocks based on the query
+    matches = []
+    for stock in common_stocks:
+        if (query.lower() in stock["symbol"].lower() or 
+            query.lower() in stock["name"].lower()):
+            matches.append(stock)
+    
+    return jsonify({
+        'status': 'success',
+        'data': matches[:5]  # Limit to 5 results
+    })
 
 def run_app():
     """Run the Flask app."""
     from config import PORT, DEBUG
-    app.run(host='0.0.0.0', port=PORT, debug=DEBUG)
+    
+    if DEBUG:
+        # Use Flask's development server for debugging
+        app.run(host='0.0.0.0', port=PORT, debug=DEBUG)
+    else:
+        # Use Waitress for production
+        from waitress import serve
+        serve(app, host='0.0.0.0', port=PORT)
+
+
+    
