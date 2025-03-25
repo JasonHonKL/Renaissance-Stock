@@ -110,6 +110,7 @@ class ReportAgent(Agent):
         Format the response as a detailed HTML document that can be displayed directly on a web page.
         Use appropriate headings, paragraphs, and styling to make the report professional and readable.
         Include a summary box at the top with the recommendation and key metrics.
+        For styling you should be careful as the content will be instert inside a div. Don't shirk or enlarge which will cause problem of display.
         Do not include any markdown code blocks or explanations outside of the HTML - just provide clean HTML.
         """
         

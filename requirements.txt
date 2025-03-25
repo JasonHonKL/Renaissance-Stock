@@ -4,3 +4,4 @@ aiohttp==3.9.1
 openai==1.5.0
 python-dotenv==1.0.0
 waitress
+backoff==2.2.1
