@@ -1,5 +1,6 @@
 ## Renaissance Stock
 Your personal full time analyst 
+PLEASE GIVE US A STAR :( WE LOVE STAR SO MUCH :)
 #### What is Renaissance Stock
 Renaissance Stock is an agentic framework that generates stock analysis reports using up-to-date information. It is significantly faster and more cost-effective than traditional methods. Most importantly, it’s open source, allowing anyone to use it without restrictions.
 
